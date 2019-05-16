@@ -1,0 +1,55 @@
+---
+title: "1. First look at the metabolite data"
+author: "Anu Joshi"
+date: "May 16, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      warning = FALSE)
+
+library(readxl)                 # to read Excel files
+library(dplyr)                  # for data manipulation
+library(magrittr)               # for data manipulation
+```
+
+The data in third sheet (VolNormImp) has been:    
+* Volume normalized: in order to account for samples that had different volumes while performing LC-MS.     
+* Imputed: missing data has been replaced with the smallest value. 
+```{r load-metabolite-date, results='hide', message=FALSE}
+metabolite = read_excel("data/MSSM-01-18ML+ CLIENT DATA TABLE 9.25.18.XLSX", 
+                     sheet = "VolNormImpData", 
+                     col_names = FALSE)
+```
+
+The table has multiple identifiers associated with each metabolites. Here we extract all the identifiers for later use, as all of them are not required at the same time. 
+```{r extract-id}
+metabolite_IDs = metabolite[10:1317, 1:13] %>%
+  set_colnames(metabolite[9, 1:13])
+
+head(metabolite_IDs)
+
+# Save the values in a separate table for use later
+# write.csv(metabolite_IDs, "data/1_metabolite-details.csv", row.names = FALSE)
+```
+
+Of all the metabolite identifiers, the "COMP ID" has the most complete data. It is an arbitary value assigned to the metabolites for identification. But since it is the most complete data, we are going to use it to extract our metabolite information. 
+```{r extract-compID}
+# transpose the information because this is going to be used as column names
+compID = metabolite[c(9:1317), 5] %>% t()
+```
+
+
+We are using the Assay ID as participant identifier, this will be later matched with studyID from the covariate data to merge and create a complete file.    
+In genetic datasets the participants IDs are in rows and the metabolites are in columns. So, we tranpose our dataset to follow that convention. This is the general rule when the number of variables are greater than the number of participants (n > p).  
+```{r extract-metabolite}
+metabolite_compID = metabolite[c(3, 10:1317), 14:513] %>%
+    t() %>%
+    as_tibble() %>%
+    set_colnames(compID)
+colnames(metabolite_compID)[1] = "Assay"
+
+# save the data in a csv file 
+write.csv(metabolite_compID, "data/1_PRISM-metabolites.csv", row.names = FALSE)
+```
