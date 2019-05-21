@@ -1,0 +1,115 @@
+---
+title: "3. Data pre-processing"
+author: "Anu Joshi"
+date: "5/20/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      warning = FALSE)
+```
+
+```{r library, results='hide', message=FALSE}
+library(dplyr)                  # for data manipulation
+library(magrittr)               # for pipe operator
+library(tibble)                 # for row and data manipulation
+library(zoo)                    # for data imputation with aggregate min
+library(quantable)              # for robust scaling methods
+library(limma)                  # for data scaling 
+
+```
+
+```{r load-data, results='hide', message=FALSE}
+df = read.csv("data/1_metabolites-clean.csv") %>%
+    column_to_rownames(var = "Assay")
+```
+
+1. Data imputation
+Missing values are imputed with the minimum
+```{r impute1}
+df0 <- df
+
+# replace all missing values with column minimum (metabolite minimum value)
+for(i in 1:ncol(df0)){
+  df0[is.na(df0[,i]), i] <- min(df0[,i], na.rm = TRUE)
+}
+
+# check for missing values to verify that all NAs have been replaced
+sum(is.na(df0))
+```
+
+
+2. Scale data
+Rescale the data, then setting the median = 1          
+
+Theoretically, the sample mean is generally a more consistent estimator than the sample median, but in skewed distributions and low sample sizes the efficiency of the mean can be impaired. Due to the propensity for extreme outliers in metabolomic data, which could adversely affect the sample mean, the median is used instead. This normalization procedure will be referred to as “MED”, henceforth. [Wuff, J.E. and Mitchell, M.W., 2018](10.4236/abb.2018.98022)   
+```{r scale-data}
+df1 <- df0
+
+# For each metabolite, divide its value by median across the experimental samples (MED)
+for(i in 1:ncol(df1)){
+  df1[, i] <- df1[, i]/median(df1[,i])
+}
+```
+
+
+3. Volume Normalization
+We have one sample (RW10351 M) that had their sample extracted at a volume below the rest. This can affect the LC-MS analysis.         
+All normalization methods assume that the signal intensities scale linearly with the metabolite concentration. We are extending this idea and assuming that the metabolite signal intensities scale linearly with the sample volume. So, in order to have the same volume
+```{r norm}
+df1["RW10351 M", ] = (df1["RW10351 M", ]/60)*85
+```
+
+
+```{r}
+df_final = df1 %>% rownames_to_column(var = "Assay")
+write.csv(df1, "data/3_metabolite-VolNormImp.csv")
+```
+
+
+
+<!-- IGNORE --!> 
+
+DATA IMPUTATION
+
+Using MINMA package [Jin Z, 2018](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5925787/)
+```{r impute2}
+library(MINMA)              # Missing data Imputation incorporating Network information in Metabolomics Analysis
+```
+
+Impute using k-nearest neaighbords 
+```{r impute3}
+library(impute)
+
+# expression matrix with genes in rows, and samples in column
+df_t = t(df) %>% 
+    as.data.frame() %>%
+    rownames_to_column(var = "Assay")
+
+# df_imp3 = impute.knn(as.matrix(df_t), k = 10, rng.seed = 123)
+```
+
+
+DATA NORMALIZATION
+[Post-Acquisition sample normalization](https://www.sciencedirect.com/science/article/pii/S0021967315017574?via%3Dihub)
+```{r}
+# load the metabolomics normalise function
+source("Normalise.R")
+source("editcolnames.R")
+
+df1_norm = df1 %>% 
+    rownames_to_column(var = "Assay") %>%
+    Normalise(., method = "median")
+df_norm = df0_scale_norm$output
+```
+
+
+DATA SCALING
+robustscale() automatically 
+```{r}
+df0_scale = robustscale(df0,
+                      center = TRUE,        # subtract median
+                      scale = FALSE)[[1]]       # scaled by MAD
+df0_scale = df0_scale+1
+```

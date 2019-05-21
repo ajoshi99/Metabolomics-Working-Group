@@ -1,0 +1,95 @@
+---
+title: "2. Data Cleaning"
+author: "Anu Joshi"
+date: "5/17/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      warning = FALSE)
+```
+
+```{r load-metabolite-data, results='hide', message=FALSE}
+library(readxl)                 # to read Excel files
+library(dplyr)                  # for data manipulation
+library(magrittr)               # for data manipulation
+library(tibble)                 # for row and data manipulation
+```
+
+```{r load-metabolite-date, results='hide', message=FALSE}
+metabolite = read_excel("data/MSSM-01-18ML+ CLIENT DATA TABLE 9.25.18.XLSX", 
+                     sheet = "OrigScale", 
+                     col_names = FALSE)
+```
+
+The table has multiple identifiers associated with each metabolites. Here we extract all the identifiers for later use, as all of them are not required at the same time. 
+```{r extract-id}
+metabolite_IDs = metabolite[10:1317, 1:13] %>%
+  set_colnames(metabolite[9, 1:13])
+
+head(metabolite_IDs)
+
+# Save the values in a separate table for use later
+# write.csv(metabolite_IDs, "data/1_metabolite-details.csv", row.names = FALSE)
+```
+
+Of all the metabolite identifiers, the "COMP ID" has the most complete data. It is an arbitary value assigned to the metabolites for identification. But since it is the most complete data, we are going to use it to extract our metabolite information. 
+```{r extract-compID}
+# transpose the information because this is going to be used as column names
+compID = metabolite[c(9:1317), 5] %>% t()
+```
+
+
+We are using the Assay ID as participant identifier, this will be later matched with studyID from the covariate data to merge and create a complete file.    
+In genetic datasets the participants IDs are in rows and the metabolites are in columns. So, we tranpose our dataset to follow that convention. This is the general rule when the number of variables are greater than the number of participants (n > p).  
+```{r extract-metabolite}
+df_compID = metabolite[c(3, 10:1317), 14:513] %>%
+    t() %>%
+    as_tibble() %>%
+    set_colnames(compID)
+colnames(df_compID)[1] = "Assay"
+# write.csv(df_compID, "data/1_metabolites.csv", row.names = FALSE)
+```
+
+
+##### Setup data for removing metabolites with insufficient data
+
+We want to remove a metabolite if it has more than 30% missing value, because it would affect the data quality when we do data imputation. 
+```{r subset}
+# remove Assay ID
+# make sure all the data is numeric, in order to count the missing values
+df <- df_compID[, -1] %>%
+    mutate_if(is.character, as.numeric) 
+
+# select a threshold value: 30% of the total metabolites
+# the number of missing values for each metabolite should be lower than the 30% threshold
+n = ncol(df)*0.30
+
+# subset data with less than 30% missing values
+# removed 94 metabolites
+df_clean = subset(df, select = colSums(is.na(df))< n) %>%
+    cbind(Assay = df_compID$Assay, .)
+
+# save file
+# write.csv(df_clean, "data/1_metabolites-clean.csv", row.names = FALSE)
+```
+
+If we want to explore the metabolites we are dropping then we should also extract their metabolite identifiers
+```{r dropped-metabolites}
+# 
+missing30 = subset(df, select = colSums(is.na(df)) > n) %>% colnames()
+
+id_missing30 <- match(missing30, metabolite_IDs$`COMP ID`)
+df_missing30 = metabolite_IDs[id_missing30, ]
+
+# save file
+# write.csv(df_missing30, "data/1_removed-metabolites.csv", row.names = FALSE)
+```
+
+
+```{r save-data-files}
+# save(metabolite_IDs, compID, file = "data/.RData")
+```
+
+*** 
