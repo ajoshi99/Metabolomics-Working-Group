@@ -27,17 +27,20 @@ metabolite = read_excel("data/MSSM-01-18ML+ CLIENT DATA TABLE 9.25.18.XLSX",
 ```
 <br>
 
-There are multiple identifiers associated with each metabolite. Here we extract all the identifiers for latter use, as all of them are not required at the same time. 
+There are multiple identifiers associated with each metabolite. Here we extract all the identifiers for latter use, as all of them are not required for the analysis. 
 ```{r extract-id}
 metabolite_IDs = metabolite[10:1317, 1:13] %>%
   set_colnames(metabolite[9, 1:13])
 
-# quick view
+# quick view of the identifiers
 head(metabolite_IDs)
 ```
 <br>
 
-Of all the metabolite identifiers, the "_COMP ID_" has the most complete data. It is an arbitary value assigned to the metabolites for identification. But since it is the most complete data, we are going to use it to extract our metabolite information. 
+
+**Extract the table of metabolite concentrations**     
+
+Of all the metabolite identifiers we have on hand, "_COMP ID_" has the most complete data so we are going to use it to extract our metabolite information. COMP-ID is an arbitary value assigned by Metabolon for metabolites identification.
 ```{r extract-compID}
 # transpose the information because this is going to be used as column names
 compID = metabolite[c(9:1317), 5] %>% t()
@@ -55,7 +58,7 @@ colnames(df_compID)[1] = "Assay"
 ```
 <br>
 
-**Setup data for removing metabolites with insufficient data**
+**Remove metabolites with >30% missing data**
 
 We want to remove a metabolite if it has more than 30% missing value, because it would affect the data quality when we do data imputation. 
 ```{r subset}
@@ -69,13 +72,15 @@ df <- df_compID[, -1] %>%
 n = ncol(df)*0.30
 
 # subset data with less than 30% missing values
-# removed 94 metabolites
+# removed 93 metabolites
 df_clean = subset(df, select = colSums(is.na(df))< n) %>%
     cbind(Assay = df_compID$Assay, .)
 ```
 <br>
 
-If we want to explore the metabolites we are dropping then we should also extract their metabolite identifiers
+
+Add metabolite identifiers to the 93 metabolites that we are looking to drop.        
+_Note_: Most of the metabolites with $>30%$ missing value are Xenobiotics. If you are interested in those pathway, you can choose to keep them. It is important to explore the data before dropping them. 
 ```{r dropped-metabolites}
 missing30 = subset(df, select = colSums(is.na(df)) > n) %>% colnames()
 
