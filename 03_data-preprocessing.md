@@ -21,7 +21,7 @@ library(tibble)                 # for row and data manipulation
 The data loaded here has been filtered for metabolites with more than 30% missing values. It has samples in rows and metabolites in columns. 
 
 ```r
-df = read.csv("data/1_metabolites-clean.csv") %>%
+df = read.csv("data/2_metabolites-clean.csv") %>%
     column_to_rownames(var = "Assay")
 ```
 <br> 
