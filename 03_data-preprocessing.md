@@ -6,6 +6,7 @@ output:
   html_document:
     keep_md: yes
     theme: united
+    highlight: tango
 ---
 
 
@@ -18,42 +19,57 @@ library(tibble)                 # for row and data manipulation
 ```
 <br>
 
-The data loaded here has been filtered for metabolites with more than 30% missing values. It has samples in rows and metabolites in columns. 
+This dataset has samples in rows and metabolites in columns. <br>   
+_Note_: If you would like to remove data that has >30% missing values, then use the filtered dataset. 
 
 ```r
-df = read.csv("data/2_metabolites-clean.csv") %>%
+df = read.csv("data/2_metabolites.csv") %>%
     column_to_rownames(var = "Assay")
 ```
 <br> 
 
-**1. Data imputation**     
-
-Missing values are imputed with the minimum value of the metabolite. 
+**1. Data imputation**    
+Missing values in the dataset can be due to two major reasons - either the metabolites are absent or they are below the detection limit. The missing data is Missing Not At Random (MNAR) so we should impute the missing values instead of completely removing it from the analysis. <br>
 
 ```r
+sum(is.na(df))
+```
+The dataset has 120,292 missing datapoints and it is therefore not a statistically viable option to remove the missing data without introducing censoring bias. 
+<br> 
+
+
+Using the minimum value of the metabolite divided by the square root of 2 for data imputation. <br>
+
+```r
+# Step 1: create a dummy copy of the dataset
 df_impute <- df
 
-# replace all missing values with column minimum (metabolite minimum value)
+# Step 2: impute missing values with minimum/sqrt(2) 
 for(i in 1:ncol(df_impute)){
-  df_impute[is.na(df_impute[,i]), i] <- min(df_impute[,i], na.rm = TRUE)
+  df_impute[is.na(df_impute[,i]), i] <- min(df_impute[, i]/sqrt(2), na.rm = TRUE)
 }
 
-# check for missing values to verify that all NAs have been replaced
+# Step 3: check for missing values
+# verify that all NAs have been replaced
 sum(is.na(df_impute))
 ```
 <br>
+Other methods to consider for data imputation:      
+* Use the minimum value/minimum metabolite abundance value                  
+* kNN (k-Nearest Neighbors)         
+* No-Skip kNN algorithm to estimate missing metabolite abundances ([link](https://link.springer.com/article/10.1007/s11306-018-1451-8))   
+<br>
 
 
-**2. Scale data**     
-
-Rescale the data, then setting the median = 1          
-
-Theoretically, the sample mean is generally a more consistent estimator than the sample median, but in skewed distributions and low sample sizes the efficiency of the mean can be impaired. Due to the propensity for extreme outliers in metabolomic data, which could adversely affect the sample mean, the median is used instead. This normalization procedure will be referred to as “MED”, henceforth. [Wuff, J.E. and Mitchell, M.W., 2018](10.4236/abb.2018.98022)   
+**2. Scale data**      
+Theoretically, the sample mean is generally a more consistent estimator than the sample median, but in skewed distributions and low sample sizes the efficiency of the mean can be impaired. Due to the propensity for extreme outliers in metabolomic data, which could adversely affect the sample mean, the median is used instead. This normalization procedure will be referred to as “MED”, henceforth. [Wuff, JE and Mitchell, MW, 2018](10.4236/abb.2018.98022)   <br>
 
 ```r
+# step 1: create a dummy copy of the dataset
 df_impute_scale <- df_impute
 
 # For each metabolite, divide its value by median across the experimental samples (MED)
+# This will set the median value as 1
 for(i in 1:ncol(df_impute_scale)){
   df_impute_scale[, i] <- df_impute_scale[, i]/median(df_impute_scale[,i])
 }
@@ -69,6 +85,7 @@ All normalization methods assume that the signal intensities scale linearly with
 df_impute_scale["RW10351 M", ] = (df_impute_scale["RW10351 M", ]/60)*85
 ```
 <br>
+
 
 
 ```r

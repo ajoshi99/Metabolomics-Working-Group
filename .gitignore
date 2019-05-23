@@ -2,7 +2,13 @@
 .Rhistory
 .RData
 .Ruserdata
-data/MSSM-01-18ML+ CLIENT DATA TABLE 9.25.18.XLSX
-01_data-reshaping.html
-03_data-preprocessing.html
-02_data-cleaning.html
+
+# don't upload data folder
+data
+R_functions
+
+# don't upload HTML files
+*.html
+
+# don't upload CSV files
+*.csv
