@@ -9,128 +9,150 @@ output:
 ---
 
 
-
-
 ```r
-library(readxl)                 # to read Excel files
-library(tidyverse)              # for data manipulation
-library(magrittr)               # for data manipulation
-```
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
-
-```r
-metabolite = read_excel("data/MSSM-01-18ML+ CLIENT DATA TABLE 9.25.18.XLSX", 
-                     sheet = "OrigScale", 
-                     col_names = FALSE)
+library(readr)                  # faster reading and writing csv files
+library(dplyr)                  # data manipulation
+library(magrittr)               # pipe operator
 ```
 <br>
 
-
-**1. Extract metabolite identifiers** 
-
-```r
-metabolite_IDs = metabolite[10:1317, 1:13] %>%
-  set_colnames(metabolite[9, 1:13])
-
-head(metabolite_IDs)
-```
-
-```
-## # A tibble: 6 x 13
-##   `PATHWAY SORTOR… BIOCHEMICAL `SUPER PATHWAY` `SUB PATHWAY` `COMP ID`
-##   <chr>            <chr>       <chr>           <chr>         <chr>    
-## 1 1441             (12 or 13)… Lipid           Fatty Acid, … 38293    
-## 2 1444             (14 or 15)… Lipid           Fatty Acid, … 38768    
-## 3 1448             (16 or 17)… Lipid           Fatty Acid, … 38296    
-## 4 4599             (2,4 or 2,… Xenobiotics     Food Compone… 62533    
-## 5 1668             (R)-3-hydr… Lipid           Fatty Acid M… 43264    
-## 6 1669             (S)-3-hydr… Lipid           Fatty Acid M… 52984    
-## # … with 8 more variables: PLATFORM <chr>, `CHEMICAL ID` <chr>, RI <chr>,
-## #   MASS <chr>, PUBCHEM <chr>, CAS <chr>, KEGG <chr>, `Group HMDB` <chr>
-```
-<br>
-
-
-**2. Extract metabolite concentrations**      
-
-Of all the metabolite identifiers, "COMP ID" has the most complete data so we are going to use it to extract our metabolite information. It is an arbitary value assigned to the metabolites for identification. But since it is the most complete data, 
+## 500 observations of 1314 variables
 
 ```r
-# transpose the information because this is going to be used as column names
-compID = metabolite[c(9:1317), 5] %>% t()
-```
-<br>
-
-We are using the Assay ID as participant identifier (in rows) and COMP ID as metabolite identifiers (in columns). We can match Assay ID with the studyID from the covariate data to merge and create a complete participant history file.  
-
-```r
-df_compID = metabolite[c(3, 10:1317), 14:513] %>%
-    t() %>%
-    as_tibble() %>%
-    set_colnames(compID)
-colnames(df_compID)[1] = "Assay"
-```
-In genetic datasets the participants IDs are in rows and the metabolites are in columns. So, we tranpose our dataset to follow that convention. This is the general rule when the number of variables are greater than the number of participants (n > p).  
-<br> 
-
-
-**3. Find and remove metabolites with >30% missing data**
-
-If a metabolites has more than 30% missing value, imputing the data would affect its overall data quality. So, we should consider removing them. 
-
-```r
-# remove Assay ID
-# make sure all the data is numeric, in order to count the missing values
-df <- df_compID[, -1] %>%
-    mutate_if(is.character, as.numeric) 
-
-# select a threshold value: 30% of the total metabolites
-# the number of missing values for each metabolite should be lower than the 30% threshold
-n = ncol(df)*0.30
-
-# subset data with less than 30% missing values
-# removed 93 metabolites
-df_clean = subset(df, select = colSums(is.na(df))< n) %>%
-    cbind(Assay = df_compID$Assay, .)
-```
-<br>
-
-**3.1. Explore metabolites with >30% missing value**
-
-Add metabolite identifiers to the 93 metabolites that we are looking to drop.        
-
-```r
-missing30 = subset(df, select = colSums(is.na(df)) > n) %>% colnames()
-
-id_missing30 <- match(missing30, metabolite_IDs$`COMP ID`)
-df_missing30 = metabolite_IDs[id_missing30, ]
+df = read_csv("data/1_metabolite.csv") 
 ```
 
 
-```r
-viz0 = fct_explicit_na(df_missing30$`SUPER PATHWAY`, na_level = "Unidentified") %>%
-    summary() %>%
-    as.data.frame() %>%
-    rownames_to_column(var = "Pathway") %>%
-    set_colnames(c("Pathway", "Count"))
+1. Remove individuals that had their blood drawn incorrectly or have withdrawn/been removed from the study
+## Removed 30 individuals
+## 470 observations of 1314 variables
 
-ggplot(viz0, aes(x = reorder(Pathway, -Count), y = Count)) + 
-    geom_bar(stat = "identity", aes(fill = Count), show.legend = FALSE) + 
-    coord_flip() + 
-    geom_text(aes(label = Count), hjust = -0.10, color = "black", size = 2) + 
-    theme_bw() + 
-    labs(title = "Super Pathway of metabolites to remove", subtitle = "> 30% missing value",  x= "", y = "")
+```r
+# step 1: load file of individuals that have been marked for second review
+remove = read_csv("data/outliers.csv")
 ```
 
-![](02_data-cleaning_files/figure-html/dropp-1.png)<!-- -->
-_Note_: Most of the metabolites with $>30\%$ missing value are Xenobiotics. If you are interested in those pathway, you can choose to keep them. It is important to explore the data before dropping them. 
-<br>
-
-
+```
+## Parsed with column specification:
+## cols(
+##   hhid = col_double(),
+##   iid = col_double(),
+##   Assay = col_character(),
+##   type = col_character(),
+##   Cohort = col_character(),
+##   Reason = col_character(),
+##   `from whitney` = col_character(),
+##   Exclude = col_double()
+## )
+```
 
 ```r
-# metabolite concentrations with COMP ID column and Assay ID rows
-write.csv(df_compID, "data/2_metabolites.csv", row.names = FALSE)
-write.csv(df_missing30, "data/2_metabolites-removed.csv", row.names = FALSE)
-write.csv(df_clean, "data/2_metabolites-clean.csv", row.names = FALSE)
+# step 2: select individuals that have been removed from the main data
+remove0 = subset(remove, remove$Exclude == 1) %>% select(Assay)
+
+# step 3: remove the erroneous Assay ID
+df_clean = df[!df$Assay %in% remove0$Assay, ]
+
+# step 4: remove unnecessary files
+rm(remove, remove0)
+```
+
+
+2. Add household ID and individual ID information for easy identification
+## Removed 11 individuals with duplicate ID
+## 459 observations of 1312 variables
+
+```r
+# step 1:  extract necessary variables from the ID file
+id = read_csv("data/PRISM linking IDs_clean.csv")[, c("Assay", "type", "HID", "IID_2", "Cohort")]
+```
+
+```
+## Parsed with column specification:
+## cols(
+##   Assay = col_character(),
+##   type = col_character(),
+##   random_order = col_double(),
+##   plate = col_double(),
+##   Well = col_character(),
+##   studyID = col_character(),
+##   studyID_2 = col_character(),
+##   otherlabel = col_character(),
+##   Cohort = col_character(),
+##   HID = col_double(),
+##   IID_2 = col_double()
+## )
+```
+
+```r
+# step 2: change the nomenclature to reflect the file to match
+id$Assay = if_else(id$type == "original", paste0(id$Assay, " M"), paste0(id$Assay, " A2"))
+
+# step 3: merge the ID file with the full data file, keep all the metabolite data
+# 470 observations of 1313 variables
+df_clean_id = merge(id, df_clean, by = "Assay", all.y = TRUE)
+
+# step 4: remove duplicate ID
+# 459 observations of 1312 variables
+# Removed 11 duplicated IDs
+df_clean_id0 = subset(df_clean_id, df_clean_id$type == "original") %>%
+    select(-type)
+
+# step 4: remove unnecessary files
+rm(id, df_clean_id)
+```
+
+
+3. Create a new studyID variable.     
+## There are a few household ID (HID) that have more than one child in the study, so HID cannot be used as an unique identifier. Concatenate HID-IID to create a new variable: studyID_2
+## 459 observations of 1313 variables
+
+```r
+# create a duplicate file 
+clean <- df_clean_id0
+
+# add a new variable, studyID_2
+clean0 = clean %>%
+    mutate(studyID_2 = paste0(clean$HID, "-", clean$IID_2)) %>%
+    select(Assay, studyID_2, everything())
+```
+
+
+4. Add serum information 
+## 459 observations of 1314 variables
+
+```r
+# step 1: load serum data
+serum = read_csv("data/serum_wk.csv")
+```
+
+```
+## Parsed with column specification:
+## cols(
+##   hhid = col_double(),
+##   iid = col_double(),
+##   serum_wk = col_double()
+## )
+```
+
+```r
+# step 2: create a new unique variable, studyID_2 = HID-IID
+serum$iid[which(serum$hhid > "7000")] = serum$iid[which(serum$hhid > "7000")]*10
+serum0 = serum %>%
+    mutate(studyID_2 = paste0(serum$hhid, "-", serum$iid), .) %>%
+    select(-hhid, -iid)
+
+
+# step 3: add serum information to the main file
+clean_serum = merge(serum0, clean0, by = "studyID_2", all.y = TRUE) %>%
+    select(Assay, studyID_2, serum_wk, everything())
+```
+
+
+5. Save file
+
+```r
+write_csv(clean_serum, "data/2_metabolite-clean.csv")
 ```
