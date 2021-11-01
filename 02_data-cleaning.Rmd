@@ -9,8 +9,15 @@ output:
 ---
 
 ```{r setup, message=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+knitr::opts_chunk$set(echo = TRUE, 
+                      message = FALSE, 
+                      warning = FALSE, 
+                      comment = "", 
+                      tidy = TRUE)
 
+# Load libraries
+library(here)                   # for universal pathways
+library(janitor)                # for clean names
 library(readr)                  # faster reading and writing csv files
 library(dplyr)                  # data manipulation
 library(magrittr)               # pipe operator
@@ -19,7 +26,7 @@ library(magrittr)               # pipe operator
 
 ## 500 observations of 1314 variables
 ```{r load-data, message=FALSE}
-df = read_csv("data/1_metabolite.csv") 
+df = read_csv(here("data", "1_metabolite.csv")) 
 ```
 
 

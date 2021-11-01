@@ -7,8 +7,13 @@
 data
 R_functions
 
+
+# don't upload .Rmd files
+#.Rmd
+
 # don't upload HTML files
 *.html
 
 # don't upload CSV files
 *.csv
+.DS_Store
