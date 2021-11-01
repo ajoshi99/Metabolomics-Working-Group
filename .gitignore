@@ -7,10 +7,16 @@
 data
 R_functions
 
+# don't upload the sub files
+01_data-reshaping.md
+02_data-cleaning.md
+03_data-preprocessing.md
 
 # don't upload .Rmd files
 *.Rmd
 
+# don't upload HTML files
+*.html
 
 # don't upload CSV files
 *.csv

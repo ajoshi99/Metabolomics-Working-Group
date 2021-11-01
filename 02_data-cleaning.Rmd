@@ -6,9 +6,10 @@ output:
   html_document:
     keep_md: yes
     theme: united
+    highlight: tango
 ---
 
-```{r setup, message=FALSE}
+```{r include = FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE, 
                       message = FALSE, 
                       warning = FALSE, 
@@ -22,20 +23,24 @@ library(readr)                  # faster reading and writing csv files
 library(dplyr)                  # data manipulation
 library(magrittr)               # pipe operator
 ```
+
 <br>
 
-## 500 observations of 1314 variables
-```{r load-data, message=FALSE}
-df = read_csv(here("data", "1_metabolite.csv")) 
+The extracted data set has 500 observations of 1314 variables
+
+```{r include=FALSE}
+df <- read_csv(here("data", "1_metabolite.csv")) 
 ```
 
+1.  **Remove faulty sample points**
 
-1. Remove individuals that had their blood drawn incorrectly or have withdrawn/been removed from the study
-## Removed 30 individuals
-## 470 observations of 1314 variables
+    -   Removed 30 individuals who had their blood drawn incorrectly or have withdrawn/been removed from the study
+
+    -   470 observations of 1314 variables
+
 ```{r errors}
 # step 1: load file of individuals that have been marked for second review
-remove = read_csv("data/outliers.csv")
+remove = read_csv(here("data", "raw", "outliers.csv"))
 
 # step 2: select individuals that have been removed from the main data
 remove0 = subset(remove, remove$Exclude == 1) %>% select(Assay)
@@ -47,16 +52,25 @@ df_clean = df[!df$Assay %in% remove0$Assay, ]
 rm(remove, remove0)
 ```
 
+2.  **Add household ID and individual ID information for easy identification**
 
-2. Add household ID and individual ID information for easy identification
-## Removed 11 individuals with duplicate ID
-## 459 observations of 1312 variables
+    -   Removed 11 individuals with duplicate ID
+
+    -   459 observations of 1312 variables
+
 ```{r studyID}
 # step 1:  extract necessary variables from the ID file
-id = read_csv("data/PRISM linking IDs_clean.csv")[, c("Assay", "type", "HID", "IID_2", "Cohort")]
+id <-
+    read_csv(here("data", "raw", "PRISM linking IDs_clean.csv")) %>% 
+    select("Assay", "type", "HID", "IID_2", "Cohort")
 
 # step 2: change the nomenclature to reflect the file to match
-id$Assay = if_else(id$type == "original", paste0(id$Assay, " M"), paste0(id$Assay, " A2"))
+id <- 
+    id %>% 
+    mutate(Assay =  
+               if_else(id$type == "original", 
+                       paste0(id$Assay, " M"), 
+                       paste0(id$Assay, " A2")))
 
 # step 3: merge the ID file with the full data file, keep all the metabolite data
 # 470 observations of 1313 variables
@@ -72,10 +86,13 @@ df_clean_id0 = subset(df_clean_id, df_clean_id$type == "original") %>%
 rm(id, df_clean_id)
 ```
 
+3.  **Create a new `studyID` variable**
 
-3. Create a new studyID variable.     
-## There are a few household ID (HID) that have more than one child in the study, so HID cannot be used as an unique identifier. Concatenate HID-IID to create a new variable: studyID_2
-## 459 observations of 1313 variables
+    \
+    There are a few households (HID) that have more than one child in the study, so HID cannot be used as an unique identifier. Concatenate HID-IID to create a new variable: `studyID_2`
+
+    -   459 observations of 1313 variables
+
 ```{r create-new-var}
 # create a duplicate file 
 clean <- df_clean_id0
@@ -86,12 +103,13 @@ clean0 = clean %>%
     select(Assay, studyID_2, everything())
 ```
 
+4.  **Add serum information**
 
-4. Add serum information 
-## 459 observations of 1314 variables
+    -   459 observations of 1314 variables
+
 ```{r serum}
 # step 1: load serum data
-serum = read_csv("data/serum_wk.csv")
+serum = read_csv(here("data", "raw", "serum_wk.csv"))
 
 # step 2: create a new unique variable, studyID_2 = HID-IID
 serum$iid[which(serum$hhid > "7000")] = serum$iid[which(serum$hhid > "7000")]*10
@@ -101,12 +119,11 @@ serum0 = serum %>%
 
 
 # step 3: add serum information to the main file
-clean_serum = merge(serum0, clean0, by = "studyID_2", all.y = TRUE) %>%
+df0 <- 
+    merge(serum0, clean0, by = "studyID_2", all.y = TRUE) %>%
     select(Assay, studyID_2, serum_wk, everything())
 ```
 
-
-5. Save file
-```{r save-output}
-write_csv(clean_serum, "data/2_metabolite-clean.csv")
+```{r include=FALSE}
+write_csv(df0, "data/2_metabolite-clean.csv")
 ```

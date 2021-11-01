@@ -9,7 +9,7 @@ output:
     highlight: tango
 ---
 
-```{r setup, message=FALSE}
+```{r include = FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE, 
                       message = FALSE, 
                       warning = FALSE, 
@@ -25,7 +25,7 @@ library(magrittr)               # data manipulation
 ```
 
 ```{r include=FALSE}
-metabolite <- read_excel(here("data","MSSM-01-18ML+ CLIENT DATA TABLE 6.14.19.xlsx"),
+metabolite <- read_excel(here("data", "raw", "MSSM-01-18ML+ CLIENT DATA TABLE 6.14.19.xlsx"),
                          sheet = "OrigScale", 
                          col_names = FALSE)
 ```
@@ -62,15 +62,18 @@ compID <-
   paste0("C",.)
 
 
-df_compID <- 
+df <- 
   metabolite[c(3, 14:1321), 14:513] %>%
   t() %>%
   as_tibble() %>%
   set_colnames(compID)
-colnames(df_compID)[1] = "Assay"
-
-write_csv(df_compID, here("data", "1_metabolite.csv"))
+colnames(df)[1] = "Assay"
 ```
 
-We can match Assay ID with the studyID from the covariate data to merge and create a complete participant history file.  
+
+```{r include=FALSE}
+write_csv(df, here("data", "1_metabolite.csv"))
+```
+
+We can match `Assay ID` with the `studyID` from the covariate data to merge and create a complete participant history file.  
 <br>
