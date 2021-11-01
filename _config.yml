@@ -1,9 +1,0 @@
-theme: jekyll-theme-minimal
-
-username: "https://github.com/ajoshi99"
-baseurl: "/Metabolomics-Working-Group"
-
-title: Metabobolomics Working Group
-plugins:
-  - jekyll-paginate
-  - jekyll-sitemap
