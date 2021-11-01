@@ -2,6 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
+.DS_Store
+_config.yml
 
 # don't upload data folder
 data
@@ -18,6 +20,4 @@ R_functions
 # don't upload HTML files
 *.html
 
-# don't upload CSV files
-*.csv
-.DS_Store
+
