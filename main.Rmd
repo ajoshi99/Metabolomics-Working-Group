@@ -1,0 +1,43 @@
+---
+title: "PRISM data"
+date: "2019-May-20"
+output:
+  html_document:
+    keep_md: yes
+    theme: united
+    highlight: tango
+---
+
+```{r setup, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      message = FALSE, 
+                      warning = FALSE, 
+                      comment = "", 
+                      tidy = TRUE)
+
+# load libraries
+library(here)                   # for universal pathways
+library(janitor)                # for clean names
+library(readxl)                 # read Excel files
+library(tidyverse)              # data manipulation
+library(magrittr)               # data manipulation
+```
+
+Data pre-processing pipeline for metabolite data from the **Programming of Inter-generational Stress Mechanisms (PRISM)** study
+
+### **Data Extraction**
+
+```{r child="01_data-reshaping.Rmd"}
+```
+
+### Data Cleaning
+
+```{r child="02_data-cleaning.Rmd"}
+
+```
+
+### Pre-processing
+
+```{r child="03_data-preprocessing.Rmd"}
+
+```
