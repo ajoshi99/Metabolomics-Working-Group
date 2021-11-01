@@ -11,12 +11,13 @@ data
 R_functions
 
 # don't upload .Rmd files
+*.Rmd
+
+# don't upload .md files
 01_data-reshaping.Rmd
 02_data-cleaning.Rmd
 03_data-preprocessing.Rmd
 
-# don't upload .md files
-*.md
 
 # don't upload HTML files
 *.html
